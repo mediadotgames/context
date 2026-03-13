@@ -21,7 +21,9 @@ Relationships:
 - Story → belongs_to → Topic (via headline_topic_assignments)
 - Story → has → ValidationOutput
 - Story → has → PublicInterestAssessment
-- Story → produced_by → NewsSource (via source JSONB)
+- Story → produced_by → NewsAPISource (via source_uri FK to newsapi_sources)
+- Story ↔ NewsAPIConcept (many-to-many via newsapi_article_concepts)
+- Story ↔ NewsAPICategory (many-to-many via newsapi_article_categories)
 
 ## ValidationOutput
 
@@ -103,6 +105,62 @@ Attributes:
 Denormalized pre-joined table for Grafana and frontend consumption. Refreshed via TRUNCATE + INSERT.
 
 Key columns: story_id, title, content, source_name, published_at, headline_clean, body_valid, top_category, topic_id, topic_label, cluster_size, is_public_interest, pi_label, scope_status, source_feed.
+
+## NewsAPISource (newsapi_sources)
+
+Canonical upstream source/publisher dimension.
+
+Attributes:
+
+- uri (PK) — source URI/domain (e.g. 'bbc.com')
+- title — display name (e.g. 'BBC')
+- description — upstream description
+- social_media JSONB, ranking JSONB, location JSONB
+- image, thumb_image
+
+Relationships:
+
+- NewsAPISource → publishes → Stories (one-to-many via newsapi_articles.source_uri)
+
+## NewsAPIConcept (newsapi_concepts)
+
+Canonical concept/entity dimension extracted from article enrichment.
+
+Attributes:
+
+- uri (PK) — concept URI (e.g. wiki URL)
+- type — person, loc, org, wiki
+- label JSONB — localized labels
+- location JSONB, synonyms JSONB, image
+
+Relationships:
+
+- NewsAPIConcept ↔ Stories (many-to-many via newsapi_article_concepts)
+
+## NewsAPICategory (newsapi_categories)
+
+Canonical category dimension with hierarchical structure.
+
+Attributes:
+
+- uri (PK) — category URI (e.g. 'news/Politics', 'dmoz/Society')
+- parent_uri — upstream parent (not FK-enforced)
+- label — display name
+
+Relationships:
+
+- NewsAPICategory ↔ Stories (many-to-many via newsapi_article_categories)
+
+Note: `news/*` categories are reasonable broad labels. `dmoz/*` categories are noisy — quality-tier before use in downstream logic.
+
+## PipelineRunMetric (pipeline_run_metrics)
+
+Per-run observability for normalized pipeline outputs.
+
+Attributes:
+
+- PK: (run_id, ingestion_source, run_type, nth_run, metric_name)
+- Tracks article counts, concept links, category links, distinct dimensions per run
 
 ## TrendSignal (planned — not yet implemented)
 

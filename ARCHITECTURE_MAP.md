@@ -4,7 +4,7 @@ High-level architecture of the MediaDotGames platform.
 
 Major subsystems:
 
-1. Story Ingestion (NewsAPI.ai → `newsapi_articles`)
+1. Story Ingestion (NewsAPI.ai → `newsapi_articles` + normalized dimension tables: sources, concepts, categories)
 2. Story Storage (RDS PostgreSQL 15 + pgvector)
 3. Validation & Embedding (text normalization, body quality, category assignment, embedding generation)
 4. Topic Clustering (medoid-based assign-or-create with 168h temporal window + entity veto)

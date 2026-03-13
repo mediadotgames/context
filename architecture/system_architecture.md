@@ -4,7 +4,7 @@ The MediaDotGames platform transforms raw news data into structured analytical s
 
 ## Major Components
 
-1. **News ingestion** — NewsAPI.ai → `public.newsapi_articles`
+1. **News ingestion** — NewsAPI.ai → `public.newsapi_articles` + normalized dimension tables (`newsapi_sources`, `newsapi_concepts`, `newsapi_categories` + junction tables)
 2. **Story storage** — Amazon RDS PostgreSQL 15 + pgvector 0.8.0
 3. **Validation & embedding** — Text normalization, two-phase body quality check, top category assignment, embedding generation (BAAI/bge-small-en-v1.5, 384-dim)
 4. **Topic clustering** — Medoid-based assign-or-create: three-stage (pgvector candidates → temporal/entity veto filtering → composite scoring). 168h temporal window, entity veto requires shared NER entity, dynamic stop entity detection

@@ -4,16 +4,89 @@
 
 Table: `public.newsapi_articles` (active feed)
 
+Core article fields:
 - uri TEXT PRIMARY KEY
-- title TEXT
-- body TEXT
-- url TEXT
+- title TEXT, body TEXT, url TEXT, image TEXT
+- date DATE, time TIME, date_time TIMESTAMPTZ, date_time_published TIMESTAMPTZ
+- lang TEXT, sentiment DOUBLE PRECISION, data_type TEXT (news|blog|pr)
+- is_duplicate BOOLEAN (not used — unreliable)
+- event_uri TEXT, story_uri TEXT, relevance INTEGER, sim DOUBLE PRECISION, wgt BIGINT
+
+Raw upstream JSONB (preserved for audit/replay/debugging):
 - source JSONB — `{"uri": "bbc.com", "title": "BBC", ...}`
 - categories JSONB — `[{"uri": "news/Politics", "wgt": 100}, ...]`
 - concepts JSONB — `[{"uri": "...", "label": {"eng": "..."}, "type": "..."}, ...]`
-- date_time_published TIMESTAMPTZ
-- date_time TIMESTAMPTZ
-- is_duplicate BOOLEAN (not used — unreliable)
+- authors JSONB, links JSONB, videos JSONB, shares JSONB
+- duplicate_list JSONB, extracted_dates JSONB, location JSONB
+- original_article JSONB, raw_article JSONB
+
+Relational linkage fields:
+- source_uri TEXT — FK to `newsapi_sources.uri`
+- ingestion_source TEXT, run_id TIMESTAMPTZ, run_type TEXT, nth_run INTEGER
+- collected_at TIMESTAMPTZ, ingested_at TIMESTAMPTZ
+- created_at TIMESTAMPTZ, updated_at TIMESTAMPTZ
+
+> **Note**: Prefer normalized joins (newsapi_sources, newsapi_concepts, newsapi_categories) over JSONB extraction for analytics queries. The JSONB columns are retained for auditability and raw payload inspection.
+
+## Normalized Ingestion Dimension Tables
+
+The ingestion pipeline projects high-value dimensions from raw JSONB into normalized relational tables. These are populated automatically by the loaders and backfilled for historical data.
+
+Table: `public.newsapi_sources`
+
+Canonical source dimension. One row per upstream publisher.
+
+- uri TEXT PRIMARY KEY — source URI/domain
+- title TEXT — display name
+- description TEXT, image TEXT, thumb_image TEXT
+- social_media JSONB, ranking JSONB, location JSONB
+- created_at TIMESTAMPTZ, updated_at TIMESTAMPTZ
+
+Relationships: one source → many newsapi_articles (via source_uri)
+
+Table: `public.newsapi_concepts`
+
+Canonical concept/entity dimension. Covers people, organizations, locations, wiki topics.
+
+- uri TEXT PRIMARY KEY
+- type TEXT — person, loc, org, wiki
+- label JSONB — localized labels
+- image TEXT, location JSONB, synonyms JSONB
+- created_at TIMESTAMPTZ, updated_at TIMESTAMPTZ
+
+Relationships: many concepts ↔ many articles (via newsapi_article_concepts)
+
+Table: `public.newsapi_categories`
+
+Canonical category dimension. Hierarchical via parent_uri.
+
+- uri TEXT PRIMARY KEY
+- parent_uri TEXT — upstream parent (not FK-enforced — upstream taxonomy is incomplete)
+- label TEXT
+- created_at TIMESTAMPTZ, updated_at TIMESTAMPTZ
+
+Relationships: many categories ↔ many articles (via newsapi_article_categories)
+
+Data quality note: `news/*` categories look reasonable as broad topical labels. `dmoz/*` categories are noisy and over-attached — should be quality-tiered before influencing downstream logic.
+
+Table: `public.newsapi_article_concepts` (junction)
+
+- article_uri TEXT (FK → newsapi_articles.uri)
+- concept_uri TEXT (FK → newsapi_concepts.uri)
+- PK: (article_uri, concept_uri)
+
+Table: `public.newsapi_article_categories` (junction)
+
+- article_uri TEXT (FK → newsapi_articles.uri)
+- category_uri TEXT (FK → newsapi_categories.uri)
+- PK: (article_uri, category_uri)
+
+Table: `public.pipeline_run_metrics`
+
+Per-run observability for normalized pipeline outputs.
+
+- PK: (run_id, ingestion_source, run_type, nth_run, metric_name)
+- Tracks article counts, concept links, category links, and distinct dimensions per run
 
 ## Deprecated Source Table
 
@@ -24,6 +97,35 @@ Table: `public.headlines` (newsapi.org, deprecated)
 - title TEXT, description TEXT, url TEXT, url_to_image TEXT
 - published_at TIMESTAMPTZ, content TEXT (99% truncated)
 - created_at TIMESTAMPTZ, updated_at TIMESTAMPTZ, topic_id UUID
+
+## Example Queries (Normalized Tables)
+
+Top sources:
+```sql
+SELECT s.title, a.source_uri, COUNT(*) AS articles
+FROM public.newsapi_articles a
+LEFT JOIN public.newsapi_sources s ON s.uri = a.source_uri
+GROUP BY s.title, a.source_uri
+ORDER BY articles DESC LIMIT 25;
+```
+
+Recent articles for a concept:
+```sql
+SELECT a.uri, a.title, a.date_time_published
+FROM public.newsapi_articles a
+JOIN public.newsapi_article_concepts ac ON ac.article_uri = a.uri
+WHERE ac.concept_uri = 'http://en.wikipedia.org/wiki/United_States'
+ORDER BY a.date_time_published DESC LIMIT 50;
+```
+
+Top categories by article count:
+```sql
+SELECT c.uri, c.label, COUNT(*) AS article_count
+FROM public.newsapi_article_categories ac
+JOIN public.newsapi_categories c ON c.uri = ac.category_uri
+GROUP BY c.uri, c.label
+ORDER BY article_count DESC LIMIT 25;
+```
 
 ## Enrichment Tables
 
