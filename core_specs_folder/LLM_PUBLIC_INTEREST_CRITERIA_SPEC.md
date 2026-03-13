@@ -1,17 +1,15 @@
 # Public Interest Evaluation Specification
 
-Status: Living Specification  
+Status: Living Specification
 Owner: MediaDotGames Platform
 
-This document defines the deterministic criteria used to evaluate whether a news topic is relevant to the public interest.
+This document defines the criteria used to evaluate whether a news story is relevant to the public interest.
 
 The specification governs the behavior of the Public Interest LLM Judging Service.
 
 ## 1. System Purpose
 
-The system evaluates news **topics** to determine whether they are relevant to the public interest.
-
-A topic represents a cluster of stories referring to the same underlying event.
+The system evaluates news **stories** to determine whether they are relevant to the public interest.
 
 The evaluation must be:
 
@@ -23,170 +21,153 @@ The LLM must function as a structured evaluator rather than a subjective comment
 
 ## 2. Evaluation Unit
 
-The system evaluates **topics**, not individual stories.
+The system evaluates **individual stories**, not topics or clusters.
 
 Input data for evaluation includes:
 
-- `topic_id`
-- `representative_headline`
-- `representative_story_summary`
-- `topic_keywords`
-- `cluster_size`
-- `sources_reporting`
+- `story_id`
+- `headline`
+- `evaluation_text` (composed from headline + snippet or body text)
+- `source_name`
 
-The representative story is typically the most central story in the cluster.
+The evaluation text is composed using a priority order: full body text (if > 100 chars), then headline + snippet (if snippet is valid), then headline only.
 
 ## 3. Definition of Public Interest
 
-A topic is considered relevant to the public interest if it materially affects:
+A story is considered relevant to the public interest if it helps the public understand:
 
-- governance
-- public policy
-- public safety
-- economic systems
-- civil rights
-- environmental systems
-- large populations
+- how power is exercised
+- how institutions affect people's lives
+- what new facts about those systems have emerged
+
+Stories that do not advance those goals receive Low or Not Public Interest classifications.
+
+**Focus on systems, not individuals.** The system prioritizes institutional behavior over individual incidents. This avoids distortion from cherry-picked crime stories, culture-war outrage content, and celebrity controversies.
+
+**Commentary does not automatically qualify.** Opinion or analysis pieces qualify only if they analyze real institutional actions with real consequences.
+
+**Historical or archival stories usually fail.** Stories about historical figures or anniversaries generally fail unless they reveal new evidence or documents.
 
 Topics primarily involving entertainment, celebrity activity, lifestyle, or consumer products generally do not qualify.
 
 ## 4. Evaluation Criteria
 
-Each topic is evaluated across multiple criteria.
+Each story is evaluated across four binary criteria (true/false).
 
-Each criterion is scored:
+### Criterion 1: Real-World Impact (`material_impact`)
 
-- `0 = not present`
-- `1 = weak presence`
-- `2 = moderate presence`
-- `3 = strong presence`
-
-### Criterion 1: Governance Impact
-
-Does the topic involve government institutions or political processes?
+Does the story describe events that materially affect people's safety, health, economic conditions, civil rights, or security?
 
 Examples:
 
-- legislation
-- regulatory policy
-- elections
-- executive actions
-- international diplomacy
-
-### Criterion 2: Public Safety
-
-Does the topic involve risks to human safety?
-
-Examples:
-
-- natural disasters
 - war
-- terrorism
-- large-scale accidents
-- public health emergencies
-
-### Criterion 3: Economic Impact
-
-Does the topic affect economic systems or major industries?
-
-Examples:
-
-- financial crises
-- major corporate collapse
-- labor strikes
-- major layoffs
-- systemic market disruptions
-
-### Criterion 4: Civil Rights / Legal Precedent
-
-Does the topic affect civil liberties or legal frameworks?
-
-Examples:
-
-- court rulings
-- constitutional interpretation
-- discrimination cases
-- major legal reforms
-
-### Criterion 5: Environmental Impact
-
-Does the topic affect environmental systems?
-
-Examples:
-
-- climate policy
+- economic shocks
+- public health crises
 - environmental disasters
-- ecological regulation
+- major policy changes
 
-### Criterion 6: Population Scale
+### Criterion 2: Institutional Action (`institutional_action`)
 
-How many people are affected?
+Does the story focus on actions or decisions by institutions?
 
-Scoring guide:
+Qualifying institutions:
 
-- `0 = fewer than 1,000 people`
-- `1 = local community`
-- `2 = regional population`
-- `3 = national or global population`
+- governments
+- courts
+- regulators
+- legislatures
+- large corporations
+- security forces
 
-## 5. Scoring Model
+This criterion intentionally filters out individual behavior stories.
 
-The total public interest score is calculated as:
+Examples that fail: random crime, celebrity misconduct, interpersonal disputes.
 
-`public_interest_score = sum(criteria_scores)`
+Examples that pass: court rulings, legislation, regulatory enforcement, institutional failure.
 
-Maximum possible score:
+### Criterion 3: Widespread Impact (`scope_scale`)
 
-`18`
+Does the issue affect large populations or systems, rather than a small number of individuals?
 
-## 6. Classification Rule
+Examples: national policy, major geopolitical events, systemic regulatory changes, economic disruptions.
 
-- `score >= 5` → Public Interest
-- `score < 5` → Not Public Interest
+Examples that fail: isolated local incidents, individual disputes, small community events.
 
-This threshold may be adjusted after empirical testing.
+### Criterion 4: New Information (`new_information`)
+
+Does the story report a new development, decision, event, document, or verified fact that had not previously been publicly reported?
+
+Examples that qualify: new policy decisions, court rulings, indictments, investigative revelations, newly released reports or data.
+
+Examples that do not qualify: commentary, historical retrospectives, reaction pieces, follow-up summaries repeating known facts.
+
+## 5. Gate Rule
+
+A story qualifies as public interest if:
+
+`met_count >= 3` AND at least one **anchor criterion** is true.
+
+Anchor criteria are `material_impact` or `institutional_action`.
+
+## 6. Classification Labels
+
+| Label | Definition | `is_public_interest` |
+|-------|-----------|---------------------|
+| High | 4 criteria met | `true` |
+| Moderate | 3 criteria met (with anchor) | `true` |
+| Low | 2 criteria met | `false` |
+| Not Public Interest | 0-1 criteria met | `false` |
+
+Confidence values: High = 0.7, Moderate = 0.6, Low = 0.4, Not Public Interest = 0.4.
 
 ## 7. Output Schema
 
-The judging service must produce the following JSON result.
+The judging service produces the following result per story.
 
 ```json
 {
-  "topic_id": "uuid",
-  "public_interest": true,
-  "score_total": 7,
-  "criteria_scores": {
-    "governance": 2,
-    "public_safety": 1,
-    "economic_impact": 2,
-    "civil_rights": 0,
-    "environment": 0,
-    "population_scale": 2
-  },
-  "reasoning_summary": "Concise explanation of the evaluation",
-  "model": "gpt-x",
-  "evaluation_timestamp": "timestamp"
+  "story_id": "string",
+  "is_public_interest": true,
+  "label": "High",
+  "met_count": 4,
+  "confidence": 0.7,
+  "material_impact": true,
+  "institutional_action": true,
+  "scope_scale": true,
+  "new_information": true,
+  "assessment_json": {
+    "prompt_version": "pi_v1.0",
+    "model": "openai/gpt-4o-mini",
+    "raw_response": "...",
+    "reasoning": "One sentence explanation."
+  }
 }
 ```
 
 ## 8. Storage
 
-Judgment results should be stored in a database table.
+Assessment results are stored in:
 
-Example schema:
-
-`public_interest_judgments`
+`public.public_interest_assessments`
 
 Fields:
 
-- `id`
-- `topic_id`
-- `public_interest`
-- `score_total`
-- `criteria_scores_json`
-- `reasoning_summary`
-- `model`
-- `evaluation_timestamp`
+- `id` (UUID, primary key)
+- `story_id` (TEXT, unique)
+- `evaluated_at` (TIMESTAMPTZ)
+- `is_public_interest` (BOOLEAN)
+- `label` (TEXT: 'High' | 'Moderate' | 'Low' | 'Not Public Interest')
+- `met_count` (INT, 0-4)
+- `confidence` (REAL)
+- `material_impact` (BOOLEAN)
+- `institutional_action` (BOOLEAN)
+- `scope_scale` (BOOLEAN)
+- `new_information` (BOOLEAN)
+- `assessment_json` (JSONB: full LLM response + prompt version + model)
+- `pipeline_run_id` (UUID)
+- `created_at` (TIMESTAMPTZ)
+
+Re-evaluation overwrites via UPSERT on `story_id`.
 
 ## 9. Determinism Requirements
 
@@ -196,3 +177,11 @@ To ensure reproducibility:
 - the model version must be stored
 - evaluation inputs must be stored
 - temperature should be set to 0
+
+## 10. Intended Uses
+
+The classifier enables:
+
+- **Media signal-to-noise measurement** — comparing outlets by share of public-interest coverage
+- **Omission detection** — identifying important issues receiving little coverage
+- **Saturation detection** — detecting amplification of low-value stories

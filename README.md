@@ -25,8 +25,17 @@ Daily batch pipelines
 Primary technologies:
 
 Python
-PostgreSQL (Aurora)
-LLM services
+Amazon RDS PostgreSQL 15 + pgvector
+LLM services (OpenAI API)
 Grafana visualization
+
+Key capabilities:
+
+- Ingest 50K+ stories/day from NewsAPI.ai
+- Cluster stories into topics using embedding similarity + concept overlap
+- Evaluate public interest via LLM-based 4-criteria gate rule
+- Detect coverage asymmetry across outlet political and geographic groups
+- Visualize bias, coverage gaps, and news-to-noise ratios via heatmap views
+- Rank stories by composite signals including distribution channel trends (planned)
 
 This is a **living specification** and will evolve as the platform develops.

@@ -1,31 +1,57 @@
 # Repository Map
 
-Repositories observed in the MediaDotGames organization.
+Repositories in the MediaDotGames organization.
 
-collector
+## Core Pipeline
 
-Potential ingestion or data collection service.
+**headlines-enrichment**
 
-scraper
+Primary enrichment pipeline. Python/uv. 7-stage pipeline: story selection → validation → clustering → labeling → PI evaluation → scope classification → refresh. Writes to RDS PostgreSQL.
+
+**headlines-ingestion**
+
+Pipeline responsible for inserting headline data into the database from NewsAPI.ai.
+
+## Database
+
+**db**
+
+Database migrations and seed data. Contains SQL migrations for schema changes (validation_outputs, enriched_headlines, outlet_bias_scores, heatmap views).
+
+## Documentation
+
+**context**
+
+Architecture and system documentation (this repo).
+
+**docs**
+
+Supplementary documentation (bias methodology, etc.).
+
+## Infrastructure
+
+**collector**
+
+Data collection service.
+
+**scraper**
 
 Web scraping infrastructure used to extract article content.
 
-headlines-ingestion
-
-Pipeline responsible for inserting headline data into the database.
-
-googleshoot_db_sync
+**googleshoot_db_sync**
 
 Service syncing Google Sheets data into the database.
 
-fe-api
+## Frontend
+
+**fe-api**
 
 Backend API used by frontend interfaces.
 
-FEsandbox
+**front**
+
+Frontend application.
+
+**FEsandbox**
 
 Experimental frontend development environment.
-
-context
-
-Architecture and system documentation.
