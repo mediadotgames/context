@@ -7,6 +7,7 @@
 - As a news analyst, I want public interest scoring so that I can filter noise from substantive journalism
 - As a news analyst, I want a coverage heatmap so that I can see which outlets cover which topics and spot gaps
 - As a news analyst, I want political and geographic asymmetry metrics so that I can identify lopsided coverage
+- As a developer, I want pipeline observability dashboards so that I can monitor stage throughput, data quality, and PI distributions at a glance
 
 ### Ranking & Distribution (planned)
 - As a user, I want to sort stories by multiple dimensions (coverage volume, trending, public interest, under-covered)
@@ -61,6 +62,7 @@
 - PI evaluation must handle rate limiting gracefully (retry with backoff)
 - All enrichment outputs stored in PostgreSQL (single system of record)
 - Grafana dashboards must query in <5 seconds
+- Per-source data quality metrics (body_valid rate, dedup rate, avg body-headline similarity) must be queryable for QA
 
 ## Ranking Requirements (detailed)
 

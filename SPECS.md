@@ -102,7 +102,7 @@
 ### Outputs
 - `outlet_bias_scores` — 14 outlets seeded
 - `v_heatmap` — topic × outlet matrix (filtered to IN_SCOPE)
-- `v_heatmap_asymmetry` — skew metrics per topic
+- `v_heatmap_asymmetry` — skew metrics per topic: raw gaps (political_gap, geo_gap) + normalized skew (pol_skew, geo_skew) on [-1.0, +1.0]. Center outlets excluded from political calc.
 
 ## PI Benchmark Framework
 
@@ -110,8 +110,8 @@
 - Stories with existing PI assessments
 
 ### Processing
-1. Sample: stratified random sampling (boundary/random/errors modes)
-2. Review: CSV export with LLM outputs + empty human columns
+1. Sample: `scripts/sample_stories.py` — stratified random sampling (boundary/random/errors modes). Supports `--per-model N` to sample separately per LLM model for cross-model comparison. CSV includes: model, top_category, concept_labels, named_entities, topic_label, cluster_size, scope_status, body_valid, body_headline_similarity, story_text, LLM outputs, empty human columns.
+2. Review: CSV export for manual annotation
 3. Import: scripts/import_labels.py → pi_benchmark_labels table
 4. Measure: compare human vs LLM labels per tier
 
@@ -119,3 +119,14 @@
 - CSV for human review
 - `pi_benchmark_labels` table
 - Accuracy metrics per label tier
+
+## Pipeline Monitoring
+
+### Views (migration 016)
+
+All regular views (not materialized) — fine at current ~40K scale.
+
+- **`v_pipeline_funnel`** — Snapshot of story counts at each pipeline stage: total_articles → validated → dedup_kept/duplicate → clustered → pi_evaluated (by label) → scoped_in/out → enriched
+- **`v_validation_quality`** — Per-source body quality and dedup rates: body_valid_rate, dedup_rate, avg_body_headline_similarity grouped by source_name
+- **`v_clustering_daily`** — Daily clustering activity from topic_assignment_audit: stories_assigned_existing vs created_new, avg composite score, avg embedding similarity, avg temporal distance
+- **`v_pi_daily`** — Daily PI label distribution: counts per label (High/Moderate/Low/Not PI), overall pi_rate percentage

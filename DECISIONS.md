@@ -95,3 +95,21 @@
 **What**: 5-file protocol (DECISIONS, SPECS, REQUIREMENTS, OPEN_QUESTIONS, CONSTRAINTS) with "sync docs" command.
 **Why**: Maintain living documentation that stays current with implementation. Prevents context loss across sessions.
 **Impact**: CONTEXT_PROTOCOL.md in context repo root. CLAUDE.md snippet in headlines-enrichment.
+
+## 2026-03-14 — Asymmetry view: normalized skew metrics
+
+**What**: Added `pol_skew` and `geo_skew` columns to `v_heatmap_asymmetry`. Normalized to [-1.0, +1.0] using `(group_a - group_b) / (group_a + group_b)`. Center outlets excluded from political calculation. NULL when both groups are zero.
+**Why**: Raw gap counts (political_gap, geo_gap) don't account for total volume. A topic with 10 left / 2 right is more skewed than 100 left / 92 right, but the raw gap is larger for the latter. Normalized skew enables fair comparison across clusters of different sizes.
+**Impact**: Sort by `ABS(pol_skew) DESC` or `ABS(geo_skew) DESC` to surface the most lopsided coverage. Apply minimum cluster_size floor to filter noise.
+
+## 2026-03-14 — Pipeline monitoring views
+
+**What**: 4 new regular views for Grafana observability: `v_pipeline_funnel` (story counts at each stage), `v_validation_quality` (per-source body quality and dedup rates), `v_clustering_daily` (daily clustering activity from audit trail), `v_pi_daily` (daily PI label distribution).
+**Why**: Need pipeline health visibility without building custom dashboards from raw queries. Regular views (not materialized) — fine at ~40K scale.
+**Impact**: Migration `016_create_monitoring_views.sql`. Partially resolves tech debt item "pipeline run stats" — counts and rates now tracked, but per-stage timing and model version tracking still missing.
+
+## 2026-03-14 — PI benchmark sampling: per-model support
+
+**What**: Refactored `sample_stories.py` with `--per-model` flag to sample separately per LLM model. Extracted `_allocate()` and `_build_query()` helpers. CSV output now includes model, top_category, concept_labels, named_entities, topic_label, cluster_size, scope_status, body_valid, body_headline_similarity.
+**Why**: When comparing multiple PI models (e.g. gpt-4o-mini vs Ollama), need stratified samples per model for fair comparison. Richer CSV columns reduce round-trips when reviewing.
+**Impact**: scripts/sample_stories.py. Backward compatible — flat mode still works without `--per-model`.

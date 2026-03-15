@@ -42,7 +42,7 @@ topics.centroid actually stores the medoid embedding, not a true centroid. Colum
 ### P1 — Should fix soon
 1. **Sports mega-cluster** — needs structural solution, not just threshold tuning
 2. **No error recovery/retry** — pipeline halts on failures, no partial restart
-3. **Pipeline run stats** — no per-stage timing, threshold, or model version tracking
+3. **Pipeline run stats** — *partially resolved*: monitoring views (v_pipeline_funnel, v_validation_quality, v_clustering_daily, v_pi_daily) now provide stage-level counts, quality rates, and daily distributions. Still missing: per-stage timing and model version tracking
 
 ### P2 — Address when scaling
 4. **CLUSTER_BODY_CHAR_LIMIT hardcoded** — 500 chars, should be in Settings
